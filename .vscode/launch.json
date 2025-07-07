@@ -1,0 +1,31 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(lldb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/Users/markenstrom/Documents/BM5BasedModel/c/vsCell3/vsCell",
+            "args": [ "/Users/markenstrom/Documents/BM5BasedModel/c/vsCell3/cell_types.csv" ],
+            "stopAtEntry": false,
+            "cwd": "/Users/markenstrom/Documents/BM5BasedModel/c/vsCell3",
+            "environment": [],
+            "externalConsole": true,
+            "terminal": "integrated", 
+            "MIMode": "lldb"
+        },
+        // {
+        //     "name": "C++ LLDB Run in Terminal",
+        //     "type": "lldb",
+        //     "request": "launch",
+        //     "program": "/Users/markenstrom/Documents/BM5BasedModel/c/vsCell3/vsCell",  // Replace with your executable
+        //     "args": [],
+        //     "cwd": "/Users/markenstrom/Documents/BM5BasedModel/c/vsCell3",
+        //     "terminal": "integrated",                      // ← This enables terminal input
+        //     "stopOnEntry": false
+        // }
+    ]
+}

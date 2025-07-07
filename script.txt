@@ -1,0 +1,87 @@
+i
+sim 365
+b
+a 1.0
+h 1.0
+r
+sim 40
+o
+i
+sim 365
+b
+a 1.0
+h 0.9
+r
+sim 40
+o
+i
+sim 365
+b
+a 1.0
+h 0.8
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.7
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.6
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.5
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.4
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.3
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.2
+r
+sim 40
+o
+
+i
+sim 365
+b
+a 1.0
+h 0.1
+r
+sim 40
+o
