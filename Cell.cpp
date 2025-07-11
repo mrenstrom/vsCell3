@@ -22,6 +22,7 @@ bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell
     } else {
         cycleState++;
         if (cycleState >= Cell::cell_cycle_duration) {
+            incrementCycleCounter();
             // Reset the cell state
             cycleState = 0;
             daughterCreated = true; // Indicate that a daughter cell was created
@@ -30,6 +31,7 @@ bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell
             daughterCell->cycleState = 0;
             daughterCell->mrnaList = mrnaList; // Copy the mRNA list
             daughterCell->simMRNA = simMRNA; // Copy the mRNA simulation flag
+            daughterCell->cycleCounter = cycleCounter; // Copy the cycle counter
             //
             // check both mother cell and daughter cell for differentiation
             //

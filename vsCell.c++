@@ -22,7 +22,7 @@
 // Read mRNA expression data from CSV files
 //
 std::map<std::string,std::map<std::string, float>> mRNAExpressionList;
-std::map<std::string, CellType> cellTypes;
+Init g_init;
 //
 // Class Cell init random number generator and distribution
 //
@@ -116,7 +116,7 @@ void simulate_range(std::vector<Cell>& cells,
     //
     // remember flux of cell types
     //
-    for (const auto& pair : cellTypes) {
+    for (const auto& pair : g_init.cellTypes) {
         cellTypeFlux[pair.first] = 0; // Initialize flux for each cell type
     }
     //
@@ -129,7 +129,7 @@ void simulate_range(std::vector<Cell>& cells,
         std::vector<Cell> results; 
         for (auto& cell : cells) {
             std::string originalState = cell.getState();
-            bool daughterCellCreated = cell.simulate(cellTypes, results, simulationTime);
+            bool daughterCellCreated = cell.simulate(g_init.cellTypes, results, simulationTime);
             // If the cell type has changed, update the flux
             if (cell.getState() != originalState) {
                 cellTypeFlux[cell.getState()]++;
@@ -155,7 +155,7 @@ void simulate_range(std::vector<Cell>& cells,
         // remove and delete cells that are mature
         //
         for (auto it = cells.begin(); it != cells.end();) {
-            if (it->getState() == "Mature") {
+            if (it->getState().find("Mature") != std::string::npos)  {
                 it = cells.erase(it); // Remove the mature cell
             } else {
                 ++it; // Move to the next cell
@@ -209,7 +209,9 @@ void simulateCells(std::vector<std::vector<Cell>>& cellGroups,
     }
     std::cout << "Completed days " << startDay << " to " << stopDay << ". Total cells: " << totalCells << std::endl;
 }
-
+//
+// Simulation loop
+//
 int main(int argc, char* argv[]) {
     std::cout << "Starting vsCell simulation" << " argc = " << argc << std::endl;
     std::string init_cell_types = "cell_types.csv";
@@ -247,8 +249,8 @@ int main(int argc, char* argv[]) {
     //
     // Read cell types from CSV file
     //
-    cellTypes = readCellTypesFromCSV(init_cell_types);
-    std::cout << "Number of cell types read: " << cellTypes.size() << std::endl;
+    g_init.initializeCellTypes(init_cell_types);
+    std::cout << "Number of cell types read: " << g_init.cellTypes.size() << std::endl;
     //
     // Read mRNA expression data from CSV files
     //
@@ -257,20 +259,28 @@ int main(int argc, char* argv[]) {
     //
     // init cells into mutliple vectors for parallel processing
     //    
-    int initialCells = 1000;
     std::vector<std::vector<Cell>> cellGroups(cores);
-    int chunk_size = initialCells / cores;
+    int chunk_size = g_init.InitialCellNumber / cores;
+    //
+    // starting cell type is first line in cellTypes
+
+    if (g_init.cellTypes.empty()) {
+        std::cerr << "Error: No cell types found in the CSV file." << std::endl;
+        return 1; // Exit with an error code
+    } 
+    std::cout << "Initial cell type: " << g_init.initialCellType<< std::endl;
+
     for (int i = 0; i < cores; ++i) {
         size_t start = i * chunk_size;
-        size_t end = (i == cores - 1) ? initialCells : start + chunk_size;
+        size_t end = (i == cores - 1) ? g_init.InitialCellNumber : start + chunk_size;
         //std::cout << "Creating cells from " << start << " to " << end << std::endl;
         for (size_t j = start; j < end; ++j) {
-            // Create a new cell with the initial state "HSC" and add it to the group
-            cellGroups[i].emplace_back(j, "HSC");
+            // Create a new cell with the initial state and add it to the group
+            cellGroups[i].emplace_back(j, g_init.initialCellType);
         }
     }
-    std::cout << "Initial number of cells: " << initialCells << std::endl;
-    
+    std::cout << "Initial number of cells: " << g_init.InitialCellNumber << std::endl;
+
     std::string command;
     int day = 0;
     int param1 = 0;
@@ -388,14 +398,15 @@ int main(int argc, char* argv[]) {
                                   << ", Clone ID: " << cell.getCloneId() 
                                   << ", State: " << cell.getState() 
                                   << ", Cycle State: " << cell.getCycleState() 
-                                  << ", mRNA Count: " << cell.getMRNAListSize() 
+                                  << ", mRNA Count: " << cell.getMRNAListSize()
+                                  << ", Cycle Count: " << cell.getCycleCounter()
                                   << std::endl;
                     }
                 }
                 continue; // Skip to the next iteration
             }
             // check if arg is in CellTypes
-            if (cellTypes.find(arg) != cellTypes.end()) {
+            if (g_init.cellTypes.find(arg) != g_init.cellTypes.end()) {
                 // list HSC cells
                 for (const auto& cellV : cellGroups) {
                     for (const auto& cell : cellV) {
@@ -405,6 +416,7 @@ int main(int argc, char* argv[]) {
                                       << ", State: " << cell.getState() 
                                       << ", Cycle State: " << cell.getCycleState() 
                                       << ", mRNA Count: " << cell.getMRNAListSize() 
+                                      << ", Cycle Count: " << cell.getCycleCounter()
                                       << std::endl;
                         }
                     }

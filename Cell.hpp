@@ -51,6 +51,8 @@ public:
     int getCloneId() const { return cloneID; }
     std::string getState() const { return state; }
     int getCycleState() const { return cycleState; } 
+    void incrementCycleCounter() { cycleCounter++; }
+    int getCycleCounter() const { return cycleCounter; }
     const std::vector<MRNA>& getMRNAList() const { 
         return mrnaList; 
     }   
@@ -87,9 +89,11 @@ public:
 private:
     int id;
     int cloneID;
-    std::string state;  
+    std::string state;
+    int duplicateCount = 0; // Count of duplicates for this cell 
     int cycleState;
     std::vector<MRNA> mrnaList;
     bool simMRNA = false; // Flag to indicate if mRNA simulation is enabled
+    int cycleCounter = 0;
 
 };

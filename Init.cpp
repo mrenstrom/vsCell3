@@ -1,28 +1,35 @@
 #include "Init.hpp"
 
 
-std::map<std::string, CellType> readCellTypesFromCSV(const std::string& filename) {
+void Init::readCellTypesFromCSV(const std::string& filename) {
 
-    std::map<std::string, CellType> cellTypeMap;
     std::ifstream file(filename);
     std::string line;
 
-
-    
-
     if (!file.is_open()) {
         std::cerr << "Error: Cannot open file " << filename << std::endl;
-        return cellTypeMap;
+        return;
     }
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
-        std::string state, type, probCycleStr, probDiffStr;
+        std::string state, cmd, probCycleStr, probDiffStr, duplicateStr;
         std::string tranStateStr, tranProbStr;
 
+        if (!std::getline(ss, cmd, ',')) continue;
         if (!std::getline(ss, state, ',')) continue;
-        if (!std::getline(ss, type, ',')) continue;
-        if (type == "C") {
+        if (cmd == "InitialType") {
+            initialCellType = state; // Set the initial cell type
+            continue; // Skip the initial type line
+        } else if (cmd == "InitialNumber") {
+            try {
+                InitialCellNumber = std::stoi(state); // Set the initial cell number
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Error: Invalid initial cell number '" << state << "' in line: " << line << std::endl;
+            }
+            continue; // Skip the initial number line
+        }
+        if (cmd == "CellType") {
             if (!std::getline(ss, probCycleStr, ',')) {
                 std::cerr << "Error: Missing probCycle for state '" << state << "' in line: " << line << std::endl;
                 continue;
@@ -30,14 +37,19 @@ std::map<std::string, CellType> readCellTypesFromCSV(const std::string& filename
             if (!std::getline(ss, probDiffStr, ',')) {
                 std::cerr << "Error: Missing probDifferentiate for state '" << state << "' in line: " << line << std::endl;
                 continue;
-            }   
+            }
+            if (!std::getline(ss, duplicateStr, ',')) {
+                std::cerr << "Error: Missing duplicate count for state '" << state << "' in line: " << line << std::endl;
+                continue;
+            }
             CellType cell;
             cell.state = state;
             cell.probCycle = std::stof(probCycleStr);
             cell.probDifferentiate = std::stod(probDiffStr);
-            cellTypeMap[state] = cell;
+            cell.duplicateCount = std::stoi(duplicateStr);
+            cellTypes[state] = cell;
 
-        } else if (type == "T") {
+        } else if (cmd == "Transition") {
             if (!std::getline(ss, tranStateStr, ',')) {
                 std::cerr << "Error: Missing tranState for state '" << state << "' in line: " << line << std::endl;
                 continue;   
@@ -47,26 +59,25 @@ std::map<std::string, CellType> readCellTypesFromCSV(const std::string& filename
                 continue;   
             }   
             double tranProb = std::stod(tranProbStr);
-            if (cellTypeMap.find(state) == cellTypeMap.end()) {
+            if (cellTypes.find(state) == cellTypes.end()) {
                 std::cerr << "Error: State '" << state << "' not found in cell type map." << std::endl;
                 std::cerr << "Line: " << line << std::endl;
                 continue;
-            }   
-            CellType cell = cellTypeMap[state]; // Get existing cell type
+            }
+            CellType cell = cellTypes[state]; // Get existing cell type
             if (cell.state.empty()) {
                 std::cerr << "Error: State '" << state << "' not found in cell type map." << std::endl;
                 std::cerr << "Line: " << line << std::endl;
                 continue;
             }   
             cell.tranList.push_back({tranStateStr, tranProb});
-            cellTypeMap[state] = cell; // Update the cell type in the map
+            cellTypes[state] = cell; // Update the cell type in the map
         } else {
-            std::cerr << "Error: Invalid cell type '" << type << "' in line: " << line << std::endl;
+            std::cerr << "Error: Invalid cell type '" << state << "' in line: " << line << std::endl;
             continue;
         }
     }
-
-    return cellTypeMap;
+    return;
 }
 //
 //
