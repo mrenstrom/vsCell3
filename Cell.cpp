@@ -45,13 +45,16 @@ void Cell::simulate(std::map<std::string, CellType>& cellTypes,
                     cumulativeProb += tran.second;
                     if (randValue < cumulativeProb) {
                         daughterState = tran.first; // Change state to the differentiated type
-                        cellTypeFlux[daughterState]++; // Increment the flux for the new state
+                        cellTypeFlux[daughterState]+= duplicateCount; // Increment the flux for the new state
                         //std::cout << "daughter Cell " << id << " differentiated to " << daughterState << std::endl;
                         break;
                     }
                 }
             } 
-            results.emplace_back(cloneID, daughterState, cycleState, mrnaList, simMRNA, cycleCounter); // Create a new daughter cell with the same cloneID and state
+            //
+            //  create daughter cell or result stack
+            //
+            results.emplace_back(cloneID, daughterState, cycleState, mrnaList, simMRNA, cycleCounter, duplicateCount); 
             //
             // mother cell
             //
@@ -64,9 +67,9 @@ void Cell::simulate(std::map<std::string, CellType>& cellTypes,
                     cumulativeProb += tran.second;
                     if (randValue < cumulativeProb) {
                         motherState = tran.first; // Change state to the differentiated type
-                        cellTypeFlux[motherState]++; // Increment the flux for the new state
+                        cellTypeFlux[motherState]+= duplicateCount; // Increment the flux for the new state
                         // Add the mother cell to results with the new state
-                        results.emplace_back(cloneID, motherState, cycleState, mrnaList, simMRNA, cycleCounter);
+                        results.emplace_back(cloneID, motherState, cycleState, mrnaList, simMRNA, cycleCounter,duplicateCount);
                         state = "erase"; // Mark the current cell for erasure
                         //std::cout << "mother Cell " << id << " differentiated to " << motherState << std::endl;
                         break;

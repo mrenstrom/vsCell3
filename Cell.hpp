@@ -37,9 +37,14 @@ class Cell {
 
 public:
     Cell(std::string state ) : id(nextId), cloneID(nextId++), state(state),cycleState(0) {}
+
+
     Cell(int cloneID, std::string state) : id(nextId++), cloneID(cloneID), state(state), cycleState(0)   {}
-    Cell(int cloneID, std::string state,int cycleState, std::vector<MRNA> mrnaList,bool simMRNA,int cycleCounter) : 
-    id(nextId++), cloneID(cloneID), state(state), cycleState(cycleState), mrnaList(mrnaList), simMRNA(simMRNA), cycleCounter(cycleCounter)   {}
+    
+    
+    Cell(int cloneID, std::string state,int cycleState, std::vector<MRNA> mrnaList,bool simMRNA,int cycleCounter,int duplicateCount = 1) 
+        : id(nextId++), cloneID(cloneID), state(state), cycleState(cycleState), mrnaList(mrnaList), simMRNA(simMRNA), cycleCounter(cycleCounter), duplicateCount(duplicateCount) {}
+
 
 
 
@@ -50,12 +55,19 @@ public:
 
 
 
+
+    bool simMRNA = false; // Flag to indicate if mRNA simulation is enabled
+
     int getId() const { return id; }
     int getCloneId() const { return cloneID; }
     std::string getState() const { return state; }
     int getCycleState() const { return cycleState; } 
     void incrementCycleCounter() { cycleCounter++; }
     int getCycleCounter() const { return cycleCounter; }
+
+
+
+
     const std::vector<MRNA>& getMRNAList() const { 
         return mrnaList; 
     }   
@@ -73,12 +85,30 @@ public:
         return false;
     }
 
+    int getDuplicateCount() const {
+        return duplicateCount;
+    }   
+
+    void addToDuplicateCount(int count) {
+        duplicateCount += count;
+    }
+
+    void setDuplicateCount(int count) {
+        duplicateCount = count;
+    }   
+
+
+
     Cell* clone() {
         // Create a new cell with the same properties
         Cell* newCell = new Cell(cloneID,state);
         newCell->cycleState = cycleState; // Copy the cycle state
         newCell->mrnaList = mrnaList; // Copy the mRNA list
         newCell->simMRNA = simMRNA; // Copy the mRNA simulation flag
+        newCell->cycleCounter = cycleCounter; // Copy the cycle counter
+        newCell->duplicateCount = duplicateCount; // Copy the duplicate count
+        // Note: The id will be automatically assigned by the static nextId variable
+        // so we don't need to set it here.
         return newCell;
     }   
 
@@ -96,10 +126,9 @@ private:
     int id;
     int cloneID;
     std::string state;
-    int duplicateCount = 0; // Count of duplicates for this cell 
-    int cycleState;
+    int duplicateCount = 1; // Count of duplicates for this cell 
+    int cycleState = 0; // Current cycle state, 0 means not in cycle
     std::vector<MRNA> mrnaList;
-    bool simMRNA = false; // Flag to indicate if mRNA simulation is enabled
-    int cycleCounter = 0;
 
+    int cycleCounter = 0;
 };
