@@ -3,17 +3,24 @@ extern std::map<std::string,std::map<std::string, float>> mRNAExpressionList;
 //
 // returns true if daughter cell was created
 //
-bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell>& results, int simulationTime) {
+void Cell::simulate(std::map<std::string, CellType>& cellTypes, 
+    std::vector<Cell>& results, 
+    std::map<std::string, int>& cellTypeFlux,
+    int simulationTime) {
     CellType cellDef = cellTypes[state];
     if (cellDef.state.empty()) {
         std::cerr << "Error: Cell type '" << state << "' not found in cell types map." << std::endl;
-        return false; // Return false if the cell type is not found
+        return; // Return false if the cell type is not found
     }       
     //std::cout << "Cell " << id << " state " << state << "
 
     bool daughterCreated = false;
     degradeMRNA(simulationTime); // Degrade mRNA molecules at the start of the simulation step
-
+    simulateMRNA(simulationTime); // Simulate mRNA if enabled
+    simulateCycleMRNA(simulationTime); // Simulate mRNA if in cell cycle
+    //
+    // Check if the cell is in a cycle state
+    //
     if (cycleState == 0) {
         // Check if the cell can start a cell cycle
         if (maybeStartCellCycle(cellDef.probCycle)) {  
@@ -26,12 +33,7 @@ bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell
             // Reset the cell state
             cycleState = 0;
             daughterCreated = true; // Indicate that a daughter cell was created
-            results.emplace_back(cloneID, state); // Create a new daughter cell with the same cloneID and state
-            auto daughterCell = &results.back(); // Reference to the newly added Cell
-            daughterCell->cycleState = 0;
-            daughterCell->mrnaList = mrnaList; // Copy the mRNA list
-            daughterCell->simMRNA = simMRNA; // Copy the mRNA simulation flag
-            daughterCell->cycleCounter = cycleCounter; // Copy the cycle counter
+            std::string daughterState = state; // Store the original state before differentiation
             //
             // check both mother cell and daughter cell for differentiation
             //
@@ -42,15 +44,18 @@ bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell
                 for (const auto& tran : cellDef.tranList) {
                     cumulativeProb += tran.second;
                     if (randValue < cumulativeProb) {
-                        daughterCell->state = tran.first; // Change state to the differentiated type
-                        //std::cout << "daughter Cell " << id << " differentiated to " << daughterCell->state << std::endl;
+                        daughterState = tran.first; // Change state to the differentiated type
+                        cellTypeFlux[daughterState]++; // Increment the flux for the new state
+                        //std::cout << "daughter Cell " << id << " differentiated to " << daughterState << std::endl;
                         break;
                     }
                 }
             } 
+            results.emplace_back(cloneID, daughterState, cycleState, mrnaList, simMRNA, cycleCounter); // Create a new daughter cell with the same cloneID and state
             //
             // mother cell
             //
+            std::string motherState = state; // Store the original state before differentiation
             if (dist(rng) < cellDef.probDifferentiate) {
                 // Randomly choose a differentiation type
                 double randValue = dist(rng);
@@ -58,22 +63,17 @@ bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell
                 for (const auto& tran : cellDef.tranList) {
                     cumulativeProb += tran.second;
                     if (randValue < cumulativeProb) {
-                        state = tran.first; // Change state to the differentiated type
-                        //std::cout << "mother Cell " << id << " differentiated to " << state << std::endl;
+                        motherState = tran.first; // Change state to the differentiated type
+                        cellTypeFlux[motherState]++; // Increment the flux for the new state
+                        // Add the mother cell to results with the new state
+                        results.emplace_back(cloneID, motherState, cycleState, mrnaList, simMRNA, cycleCounter);
+                        state = "erase"; // Mark the current cell for erasure
+                        //std::cout << "mother Cell " << id << " differentiated to " << motherState << std::endl;
                         break;
                     }
                 }
             }
-
         }
-    }
-    simulateMRNA(simulationTime); // Simulate mRNA if enabled
-    simulateCycleMRNA(simulationTime); // Simulate mRNA if in cell cycle
-    if (daughterCreated) {
-        // If the daughter cell was created during the cycle, simulate mRNA for it
-        auto daughterCell = &results.back(); // Reference to the newly added Cell
-        daughterCell->simulateMRNA(simulationTime);
-        daughterCell->simulateCycleMRNA(simulationTime);
     }
     //
     // check mrnaList for the mother cell
@@ -86,7 +86,7 @@ bool Cell::simulate(std::map<std::string, CellType>& cellTypes, std::vector<Cell
     //
     // add daughter cell to mRNA cell list
     //
-    return daughterCreated; // Return true if a daughter cell was created
+    return;
 }
 //
 // Simulate mRNA for the cell

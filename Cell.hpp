@@ -38,6 +38,9 @@ class Cell {
 public:
     Cell(std::string state ) : id(nextId), cloneID(nextId++), state(state),cycleState(0) {}
     Cell(int cloneID, std::string state) : id(nextId++), cloneID(cloneID), state(state), cycleState(0)   {}
+    Cell(int cloneID, std::string state,int cycleState, std::vector<MRNA> mrnaList,bool simMRNA,int cycleCounter) : 
+    id(nextId++), cloneID(cloneID), state(state), cycleState(cycleState), mrnaList(mrnaList), simMRNA(simMRNA), cycleCounter(cycleCounter)   {}
+
 
 
     static std::mt19937 rng;
@@ -79,7 +82,10 @@ public:
         return newCell;
     }   
 
-    bool simulate(std::map<std::string, CellType>& cellTypes,std::vector<Cell>&results,int simulationTime);
+    void simulate(std::map<std::string, CellType>& cellTypes,
+        std::vector<Cell>&results,
+        std::map<std::string, int>& cellTypeFlux,
+        int simulationTime);
 
     void simulateMRNA(int simulationTime);
     int mRNA_creation_rule(double rate, std::mt19937& rng);

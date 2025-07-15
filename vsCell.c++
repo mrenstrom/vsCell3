@@ -15,6 +15,7 @@
 #include <functional>
 #include <memory>
 #include <thread>
+#include <regex>
 #include "Fred.hpp"
 #include "Cell.hpp"
 #include "Init.hpp"
@@ -129,38 +130,49 @@ void simulate_range(std::vector<Cell>& cells,
         std::vector<Cell> results; 
         for (auto& cell : cells) {
             std::string originalState = cell.getState();
-            bool daughterCellCreated = cell.simulate(g_init.cellTypes, results, simulationTime);
-            // If the cell type has changed, update the flux
-            if (cell.getState() != originalState) {
-                cellTypeFlux[cell.getState()]++;
-            }
             //
-            // if the cell divided
-            //
-            if (daughterCellCreated) {
-                // If the daughter's state is different from the original cell's state,
-                // update the flux for the daughter's state
-                auto daughterCell = &results.back(); // Reference to the newly added Cell
-                if (daughterCell->getState() != originalState) {
-                    cellTypeFlux[daughterCell->getState()]++;
-                }
-            }
+            // simulate the cell, if the cell divides, it will add a new cell to results
+            // also if the cell type changes, a new cell will be added to results
+            cell.simulate(g_init.cellTypes, results, cellTypeFlux, simulationTime);
         }
         // 
         // add the results (daughter cells) to the cells vector
         //
-        cells.insert(cells.end(), std::make_move_iterator(results.begin()), std::make_move_iterator(results.end()));
+        //cells.insert(cells.end(), std::make_move_iterator(results.begin()), std::make_move_iterator(results.end()));
+        for (auto it = results.begin(); it != results.end(); ) {
+            std::string cellState = it->getState();
+            // if not mature, add to cells
+            if (cellState.find("Mature") == std::string::npos) {
+                cells.push_back(std::move(*it)); // Move the element
+            } 
+            ++it;
+        }   
         results.clear();    
         //
-        // remove and delete cells that are mature
+        // remove cells marked for erasure
+        // and also find out how many cells may be combined in duplicates
         //
+        std::map<std::string, int> duplicateCount;       
         for (auto it = cells.begin(); it != cells.end();) {
-            if (it->getState().find("Mature") != std::string::npos)  {
-                it = cells.erase(it); // Remove the mature cell
-            } else {
+            std::string cellState = it->getState();
+            if (cellState.find("erase") != std::string::npos)  {
+                it = cells.erase(it); // Remove the cell
+            } else {            
                 ++it; // Move to the next cell
             }
+            int stateDuplicateCount = g_init.cellTypes[cellState].duplicateCount;
+            if (stateDuplicateCount > 1) {
+                // Increment the count for this cell type
+                duplicateCount[cellState]++;
+            }
         }
+        //
+        // show duplicate counts
+        //
+        //for (const auto& pair : duplicateCount) {
+        //    std::cout << "Cell type: " << pair.first 
+        //              << ", Duplicate count: " << pair.second << std::endl;
+        //}
     }
 }
 //
@@ -209,10 +221,16 @@ void simulateCells(std::vector<std::vector<Cell>>& cellGroups,
     }
     std::cout << "Completed days " << startDay << " to " << stopDay << ". Total cells: " << totalCells << std::endl;
 }
+
+void handleResize(int) {
+    // Do nothing, just override default handler
+}
+#include <csignal>
 //
-// Simulation loop
+// Main function to run the vsCell simulation
 //
 int main(int argc, char* argv[]) {
+    std::signal(SIGWINCH, handleResize); // Ignore or safely handle window resize
     std::cout << "Starting vsCell simulation" << " argc = " << argc << std::endl;
     std::string init_cell_types = "cell_types.csv";
 
@@ -246,6 +264,9 @@ int main(int argc, char* argv[]) {
     //
     unsigned int cores = std::thread::hardware_concurrency();
     std::cout << "Available hardware threads: " << cores << std::endl;
+
+    //cores = 1; // Force single-threaded execution for debugging
+
     //
     // Read cell types from CSV file
     //
@@ -269,7 +290,9 @@ int main(int argc, char* argv[]) {
         return 1; // Exit with an error code
     } 
     std::cout << "Initial cell type: " << g_init.initialCellType<< std::endl;
-
+    //
+    // Create initial cells and distribute them across the available cores
+    //
     for (int i = 0; i < cores; ++i) {
         size_t start = i * chunk_size;
         size_t end = (i == cores - 1) ? g_init.InitialCellNumber : start + chunk_size;
@@ -280,7 +303,9 @@ int main(int argc, char* argv[]) {
         }
     }
     std::cout << "Initial number of cells: " << g_init.InitialCellNumber << std::endl;
-
+    //
+    // prepare to run the simulation
+    //
     std::string command;
     int day = 0;
     int param1 = 0;
@@ -303,6 +328,12 @@ int main(int argc, char* argv[]) {
         } else {
             std::cout << "Enter command: ";
             std::getline(std::cin, line);  // Read the full line
+
+            std::cout << "Input length = " << line.length() << std::endl;
+            if (line.empty()) {
+                std::cout << "No input provided. Please try again." << std::endl;
+                continue; // Skip to the next iteration
+            }
         }
 
         std::istringstream iss(line);
@@ -496,7 +527,14 @@ int main(int argc, char* argv[]) {
                 }
             }
             std::cout << "Clone diversity:" << std::endl;
-            for (const auto& pair : cloneCount) {
+            // sort clones by number of cells
+            std::vector<std::pair<int, int>> sortedCloneCount(cloneCount.begin(), cloneCount.end());
+            std::sort(sortedCloneCount.begin(), sortedCloneCount.end(),
+                      [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+                          return a.second > b.second; // Sort by count in descending order
+                      });
+            // output sorted clone counts
+            for (const auto& pair : sortedCloneCount) {
                 std::cout << "Clone ID: " << pair.first << ", Count: " << pair.second << std::endl;
             }
             std::cout << "Total clones: " << cloneCount.size() << std::endl;
