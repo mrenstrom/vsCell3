@@ -1,0 +1,8 @@
+#CellType,[type],[cycProb],[differentiate prob][duplication][RNA Enabled]
+#Transition,[type],[toType],[prob]
+#InitialType,[type]
+#InitialNumber,[number]
+InitialType,HSC
+InitialNumber,1000
+CellType,HSC,0.05,0.50,1,true
+Transition,HSC,Mature,1.00

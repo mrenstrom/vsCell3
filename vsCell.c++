@@ -119,7 +119,6 @@ void simulate_range(std::vector<Cell*>& cells,
     std::map<std::string, int>& cellTypeFlux,
     int startDay,
     int stopDay) {
-    
     //
     // remember flux of cell types
     //
@@ -149,7 +148,7 @@ void simulate_range(std::vector<Cell*>& cells,
         //
         std::map<std::string, Cell*> cellsByCloneID;
         //
-        //  move results to cells (it is iterator)
+        //  move results to cells ('it' is iterator)
         //        
         for (auto it = results.begin(); it != results.end(); ) {
             std::string cellState = it->getState();
@@ -157,10 +156,11 @@ void simulate_range(std::vector<Cell*>& cells,
             if (cellState.find("Mature") == std::string::npos) {
                 //
                 // need a method to conglomerate cells of same type and cloneID
+                // is duplication allowed for this cell type?
                 //
                 int stateDuplicateCount = g_init.cellTypes[cellState].duplicateCount;
-                // for cells that can be added together
-                if (stateDuplicateCount > 1) {
+                // for cells that can be added together...and cell is not already over limit
+                if ((stateDuplicateCount > 1) && (it->getDuplicateCount() <  stateDuplicateCount)) {
                     // Check if this cell type and cloneID combination already exists
                     std::string key = cellState + "_" + std::to_string(it->getCloneId());
                     //
@@ -168,12 +168,11 @@ void simulate_range(std::vector<Cell*>& cells,
                     // then we need to create a new cell and update the map
                     //
                     auto itFind = cellsByCloneID.find(key);
-                    if ((itFind == cellsByCloneID.end()) || 
-                        (itFind->second->getDuplicateCount() + it->getDuplicateCount() > stateDuplicateCount)) {
-                        // new cell for vector
+                    if (itFind == cellsByCloneID.end()) {
+                        // no existing cell found
+                        // Clone the cell from stack(results) and add it to the cells vector
                         Cell* pcell = it->clone(g_init);
                         cells.emplace_back(pcell);
-                        // If this cell type and cloneID combination is not found, insert it
                         cellsByCloneID[key] = pcell; // Store the address of the cell
                     } else {
                         // If it exists, increment the duplicate count
@@ -186,8 +185,9 @@ void simulate_range(std::vector<Cell*>& cells,
                         //             << " added to " << itFind->second->getId()
                         //             << " final duplicate count " << itFind->second->getDuplicateCount() 
                         //             << " stateDuplicateCount " << stateDuplicateCount << std::endl;
-
-                        // the cell is not copied into cells
+                        // 
+                        // this cell is combined with an existing cell and number of duplicates is updated
+                        //
                         if (itFind->second->getDuplicateCount() > stateDuplicateCount) {
                             // don't want to add any more counts to this cell
                             cellsByCloneID.erase(key); // Mark it as processed
