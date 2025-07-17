@@ -12,6 +12,7 @@ struct CellType {
     double probDifferentiate;
     // Add a count for duplicates of this cell type
     int duplicateCount = 0;
+    bool rnaEnabled = false; // Flag to indicate if this cell type has RNA
 };
 
 //std::map<std::string, CellType> readCellTypesFromCSV(const std::string& filename);
@@ -28,4 +29,20 @@ public:
     int InitialCellNumber = 0;
     std::map<std::string, CellType> cellTypes;
     void readCellTypesFromCSV(const std::string& filename);
+    bool rnaEnabledForType(std::string cellType) {
+        auto it = cellTypes.find(cellType);
+        if (it != cellTypes.end()) {
+            return it->second.rnaEnabled;
+        }
+        std::cerr << "Error: Cell type '" << cellType << "' not found in cell types map." << std::endl;
+        return false; // Default to false if not found
+    }
+    int duplicateCountForType(std::string cellType) {
+        auto it = cellTypes.find(cellType);
+        if (it != cellTypes.end()) {
+            return it->second.duplicateCount;
+        }
+        std::cerr << "Error: Cell type '" << cellType << "' not found in cell types map." << std::endl;
+        return 0; // Default to 0 if not found
+    }
 };

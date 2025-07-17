@@ -13,11 +13,15 @@ void Init::readCellTypesFromCSV(const std::string& filename) {
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
-        std::string state, cmd, probCycleStr, probDiffStr, duplicateStr;
+        std::string state, cmd, probCycleStr, probDiffStr, duplicateStr,rnaEnabledForType;
         std::string tranStateStr, tranProbStr;
 
         if (!std::getline(ss, cmd, ',')) continue;
         if (!std::getline(ss, state, ',')) continue;
+        if (cmd[0] == '#') continue; // Skip comment lines
+        // Remove leading and trailing whitespace from state
+        state.erase(0, state.find_first_not_of(" \t"));
+        state.erase(state.find_last_not_of(" \t") + 1);
         if (cmd == "InitialType") {
             initialCellType = state; // Set the initial cell type
             continue; // Skip the initial type line
@@ -42,11 +46,17 @@ void Init::readCellTypesFromCSV(const std::string& filename) {
                 std::cerr << "Error: Missing duplicate count for state '" << state << "' in line: " << line << std::endl;
                 continue;
             }
+            if (!std::getline(ss, rnaEnabledForType, ',')) {
+                std::cerr << "Error: Missing RNA enabled flag for state '" << state << "' in line: " << line << std::endl;
+                continue;
+            }   
+
             CellType cell;
             cell.state = state;
             cell.probCycle = std::stof(probCycleStr);
             cell.probDifferentiate = std::stod(probDiffStr);
             cell.duplicateCount = std::stoi(duplicateStr);
+            cell.rnaEnabled = (rnaEnabledForType == "true");
             cellTypes[state] = cell;
 
         } else if (cmd == "Transition") {

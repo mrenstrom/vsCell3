@@ -3,11 +3,11 @@ extern std::map<std::string,std::map<std::string, float>> mRNAExpressionList;
 //
 // returns true if daughter cell was created
 //
-void Cell::simulate(std::map<std::string, CellType>& cellTypes, 
+void Cell::simulate(Init& g_init, 
     std::vector<Cell>& results, 
     std::map<std::string, int>& cellTypeFlux,
     int simulationTime) {
-    CellType cellDef = cellTypes[state];
+    CellType cellDef = g_init.cellTypes[state];
     if (cellDef.state.empty()) {
         std::cerr << "Error: Cell type '" << state << "' not found in cell types map." << std::endl;
         return; // Return false if the cell type is not found
@@ -35,7 +35,7 @@ void Cell::simulate(std::map<std::string, CellType>& cellTypes,
             daughterCreated = true; // Indicate that a daughter cell was created
             std::string daughterState = state; // Store the original state before differentiation
             //
-            // check both mother cell and daughter cell for differentiation
+            // check daughter cell for differentiation
             //
             if (dist(rng) < cellDef.probDifferentiate) {
                 // Randomly choose a differentiation type
@@ -52,9 +52,10 @@ void Cell::simulate(std::map<std::string, CellType>& cellTypes,
                 }
             } 
             //
-            //  create daughter cell or result stack
+            //  create daughter cell on result vector [stack based]
             //
-            results.emplace_back(cloneID, daughterState, cycleState, mrnaList, simMRNA, cycleCounter, duplicateCount); 
+            results.emplace_back(cloneID, state, cycleState, mrnaList, simMRNA, rnaEnabledForType, cycleCounter, duplicateCount);
+            results.back().setState(daughterState, g_init); // Set the state of the daughter cell
             //
             // mother cell
             //
@@ -69,7 +70,10 @@ void Cell::simulate(std::map<std::string, CellType>& cellTypes,
                         motherState = tran.first; // Change state to the differentiated type
                         cellTypeFlux[motherState]+= duplicateCount; // Increment the flux for the new state
                         // Add the mother cell to results with the new state
-                        results.emplace_back(cloneID, motherState, cycleState, mrnaList, simMRNA, cycleCounter,duplicateCount);
+                        //!!! is it quicker to update in place and remove "mature" state later?
+                        //setState(motherState); // Update the state of the mother cell
+                        results.emplace_back(cloneID, state, cycleState, mrnaList, simMRNA, rnaEnabledForType, cycleCounter, duplicateCount);
+                        results.back().setState(motherState, g_init); // Set the state of the mother cell
                         state = "erase"; // Mark the current cell for erasure
                         //std::cout << "mother Cell " << id << " differentiated to " << motherState << std::endl;
                         break;
@@ -78,17 +82,6 @@ void Cell::simulate(std::map<std::string, CellType>& cellTypes,
             }
         }
     }
-    //
-    // check mrnaList for the mother cell
-    //
-    if ((simMRNA) && (mrnaList.empty()) && (state != "Mature")) {
-        // If mRNA simulation is enabled and the mother cell has no mRNA molecules, print  
-        std::cerr << "Error: No mRNA molecules found for cell " << id << " state " << state << std::endl;
-    }
-
-    //
-    // add daughter cell to mRNA cell list
-    //
     return;
 }
 //

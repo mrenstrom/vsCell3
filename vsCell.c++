@@ -39,7 +39,9 @@ double mrna_degradation = 0.5; // Default degradation rate for mRNA
 // output all cell type and mrna information to a csv file
 //
 void outputCellTypesAndMRNA(const std::vector<std::vector<Cell*>>& cellGroups,
-                            const std::string& filename) {
+    const Init& g_init, 
+    const std::string& filename) {
+
     std::cout << "Outputting cell types and mRNA to " << filename << std::endl;
 
     std::ofstream outFile(filename);
@@ -72,6 +74,10 @@ void outputCellTypesAndMRNA(const std::vector<std::vector<Cell*>>& cellGroups,
 
     for (const auto& cells:cellGroups) {
         for (const auto& pcell : cells) {
+            if (!pcell->getSimulateMRNA()) {
+                // If mRNA simulation is not enabled, skip this cell
+                continue;
+            }
             outFile << pcell->getState() << "_"
                     << pcell->getId() << "_"
                     << pcell->getCloneId() << "_"
@@ -133,7 +139,7 @@ void simulate_range(std::vector<Cell*>& cells,
             //
             // simulate the cell, if the cell divides, it will add a new cell to results
             // also if the cell type changes, a new cell will be added to results
-            pcell->simulate(g_init.cellTypes, results, cellTypeFlux, simulationTime);
+            pcell->simulate(g_init, results, cellTypeFlux, simulationTime);
         }
         //
         // the results vector now contains all the new cells created during the simulation
@@ -165,7 +171,7 @@ void simulate_range(std::vector<Cell*>& cells,
                     if ((itFind == cellsByCloneID.end()) || 
                         (itFind->second->getDuplicateCount() + it->getDuplicateCount() > stateDuplicateCount)) {
                         // new cell for vector
-                        Cell* pcell = new Cell(it->getCloneId(), cellState, it->getCycleState(), it->getMRNAList(), it->simMRNA, it->getCycleCounter(), it->getDuplicateCount());
+                        Cell* pcell = it->clone(g_init);
                         cells.emplace_back(pcell);
                         // If this cell type and cloneID combination is not found, insert it
                         cellsByCloneID[key] = pcell; // Store the address of the cell
@@ -189,7 +195,7 @@ void simulate_range(std::vector<Cell*>& cells,
                     }
                 } else {
                     // non-duplicate, just save it
-                    cells.emplace_back(new Cell(it->getCloneId(), cellState, it->getCycleState(), it->getMRNAList(), it->simMRNA, it->getCycleCounter(), it->getDuplicateCount()));
+                    cells.emplace_back(it->clone(g_init)); // Clone the cell and add it to cells
                 }
             }
             ++it;
@@ -334,7 +340,7 @@ int main(int argc, char* argv[]) {
         //std::cout << "Creating cells from " << start << " to " << end << std::endl;
         for (size_t j = start; j < end; ++j) {
             // Create a new cell with the initial state and add it to the group
-            cellGroups[i].emplace_back(new Cell(j, g_init.initialCellType));
+            cellGroups[i].emplace_back(new Cell(j, g_init.initialCellType, g_init));
         }
     }
     std::cout << "Initial number of cells: " << g_init.InitialCellNumber << std::endl;
@@ -421,7 +427,7 @@ int main(int argc, char* argv[]) {
             //
             // Output cell types and mRNA counts to CSV file
             //
-            outputCellTypesAndMRNA(cellGroups, filename);
+            outputCellTypesAndMRNA(cellGroups,g_init,filename);
             continue; // Skip to the next iteration
         } else if (command == "r") {
             //
@@ -429,10 +435,11 @@ int main(int argc, char* argv[]) {
             //
             for (auto& cellV : cellGroups) {
                 for (auto& pcell : cellV) {
-                    pcell->simulateMRNA(true); // Enable mRNA simulation
+                    pcell->setSimulateMRNA(true); // Enable mRNA simulation
                 }
             }
             std::cout << "mRNA simulation enabled." << std::endl;
+
         } else if (command == "t") {
             // show cell types
             std::map<std::string, int> cellTypeCount;
@@ -446,8 +453,8 @@ int main(int argc, char* argv[]) {
             }            
             std::cout << "Cell types:" << std::endl;
             for (const auto& pair : cellTypeCount) {
-                std::cout << pair.first << ": " << pair.second;
-                std::cout << " Object Count: " << cellObjectCount[pair.first];
+                std::cout << pair.first << "\t\t " << pair.second;
+                std::cout << "\tObject Count \t" << cellObjectCount[pair.first];
                 // for this cell type, how many are in cell cycle
                 int inCycle = 0;
                 for (const auto& cellV : cellGroups) {
@@ -457,7 +464,7 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
-                std::cout << "  in cycle:   r = " << inCycle / static_cast<double>(pair.second) 
+                std::cout << "      cycR = " << inCycle / static_cast<double>(pair.second) 
                 << std::endl;
             }
         } else if (command == "e") {
@@ -472,6 +479,8 @@ int main(int argc, char* argv[]) {
                                   << ", mRNA Count: " << pcell->getMRNAListSize()
                                   << ", Cycle Count: " << pcell->getCycleCounter()
                                   << ", Duplicate Count: " << pcell->getDuplicateCount()
+                                  << ", simMRNA: " << (pcell->getSimulateMRNA() ? "true" : "false")
+                                  << ", RNA Enabled: " << (pcell->getRNAEnabledForType() ? "true" : "false")
                                   << std::endl;
                     }
                 }
@@ -492,6 +501,8 @@ int main(int argc, char* argv[]) {
                                       << ", mRNA Count: " << pcell->getMRNAListSize() 
                                       << ", Cycle Count: " << pcell->getCycleCounter()
                                       << ", Duplicate Count: " << pcell->getDuplicateCount()
+                                        << ", simMRNA: " << (pcell->getSimulateMRNA() ? "true" : "false")
+                                      << ", RNA Enabled: " << (pcell->getRNAEnabledForType() ? "true" : "false")
                                       << std::endl;
                         }
                     }
@@ -499,6 +510,21 @@ int main(int argc, char* argv[]) {
                 continue; // Skip to the next iteration
             }
             // arg is a cellID
+            // Check if the argument is a valid integer
+            if (arg.empty() || !std::all_of(arg.begin(), arg.end(), ::isdigit)) {
+                std::cout << "Invalid cellID. Please provide a positive integer." << std::endl;
+                continue; // Skip to the next iteration
+            }
+            // Convert the argument to an integer
+            try {
+                param1 = std::stoi(arg);
+            } catch (const std::invalid_argument& e) {
+                std::cout << "Invalid cellID. Please provide a valid integer." << std::endl;
+                continue; // Skip to the next iteration
+            } catch (const std::out_of_range& e) {
+                std::cout << "Invalid cellID. Please provide a valid integer within range." << std::endl;
+                continue; // Skip to the next iteration
+            }
             param1 = std::stoi(arg); // Convert the argument to an integer
             if (param1 <= 0) {
                 std::cout << "Invalid cellID. Please provide a positive integer." << std::endl;
@@ -602,7 +628,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Creating cells from " << start << " to " << end << std::endl;
                 for (size_t j = start; j < end; ++j) {
                     // Create a new cell with the initial state "HSC" and add it to the group
-                    cellGroups[i].emplace_back(new Cell(j, "HSC"));
+                    cellGroups[i].emplace_back(new Cell(j, "HSC", g_init));
                 }
             }
             std::cout << "Initial number of cells: " << numCells << std::endl;
